@@ -118,7 +118,8 @@ void post_callback(MbedCloudClientResource *resource, const uint8_t *buffer, uin
  * This function will be triggered either by a physical button press or by a ticker every 5 seconds (see below)
  */
 void button_press() {
-    static unsigned int count = 0;
+    static uint32_t count = 0;
+    static uint32_t id = 0;
 
     MQTT::Message message;
     message.retained = false;
@@ -126,7 +127,7 @@ void button_press() {
 
     const size_t len = 128;
     char buf[len];
-    snprintf(buf, len, "Message #%d from %s.", count, DEVICE_ID);
+    snprintf(buf, len, "Button press: #%d from %s", count, DEVICE_ID);
     printf("Sending %s\n", buf);
     message.payload = (void*)buf;
 
@@ -205,7 +206,7 @@ int main(void) {
         print_memory_info();
         return -1;
     }
-    printf("Azure IoT Hub is connected\n", cr);
+    printf("Azure IoT Hub is connected\n");
 
     print_memory_info();
 
