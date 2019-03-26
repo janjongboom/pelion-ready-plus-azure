@@ -14,3 +14,4 @@ mbed-os/
 simple-mbed-cloud-client/
 drivers/network/WIFI_ISM43362/
 drivers/storage/COMPONENT_NUSD/
+simple-azure-iot-hub/ntp-client/

@@ -19,6 +19,7 @@
 
 #include "mbed.h"
 #include "simple-mbed-cloud-client.h"
+#include "SimpleAzureIoTHub.h"
 #include "FATFileSystem.h"
 #include "LittleFileSystem.h"
 
@@ -44,13 +45,48 @@ InterruptIn button(BUTTON1);
 DigitalOut led(LED1);
 
 // Declaring pointers for access to Pelion Device Management Client resources outside of main()
-MbedCloudClientResource *button_res;
 MbedCloudClientResource *led_res;
 MbedCloudClientResource *post_res;
+
+// Access to Azure IoT
+AzureIoT *azure;
 
 // An event queue is a very useful structure to debounce information between contexts (e.g. ISR and normal threads)
 // This is great because things such as network operations are illegal in ISR, so updating a resource in a button's fall() function is not allowed
 EventQueue eventQueue;
+
+
+/*
+ * Callback function called when a message arrived from Azure
+ */
+void azure_message_handler(MQTT::MessageData& md)
+{
+    // Copy payload to the buffer.
+    MQTT::Message &message = md.message;
+    if (message.payloadlen > 127) message.payloadlen = 127;
+    char buff[128] = { 0 };
+    memcpy(buff, message.payload, message.payloadlen);
+
+    printf("Message arrived from Azure: '%s'\n", buff);
+}
+
+
+void print_memory_info() {
+    // allocate enough room for every thread's stack statistics
+    int cnt = osThreadGetCount();
+    mbed_stats_stack_t *stats = (mbed_stats_stack_t*) malloc(cnt * sizeof(mbed_stats_stack_t));
+
+    cnt = mbed_stats_stack_get_each(stats, cnt);
+    for (int i = 0; i < cnt; i++) {
+        printf("Thread: 0x%lX, Stack size: %lu / %lu\r\n", stats[i].thread_id, stats[i].max_size, stats[i].reserved_size);
+    }
+    free(stats);
+
+    // Grab the heap statistics
+    mbed_stats_heap_t heap_stats;
+    mbed_stats_heap_get(&heap_stats);
+    printf("Heap size: %lu / %lu bytes (max: %lu bytes)\r\n", heap_stats.current_size, heap_stats.reserved_size, heap_stats.max_size);
+}
 
 /**
  * PUT handler - sets the value of the built-in LED
@@ -78,13 +114,34 @@ void post_callback(MbedCloudClientResource *resource, const uint8_t *buffer, uin
 }
 
 /**
- * Button handler
+ * Button handler that sends data to Azure IoT Hub
  * This function will be triggered either by a physical button press or by a ticker every 5 seconds (see below)
  */
 void button_press() {
-    int v = button_res->get_value_int() + 1;
-    button_res->set_value(v);
-    printf("Button clicked %d times\n", v);
+    static unsigned int count = 0;
+
+    MQTT::Message message;
+    message.retained = false;
+    message.dup = false;
+
+    const size_t len = 128;
+    char buf[len];
+    snprintf(buf, len, "Message #%d from %s.", count, DEVICE_ID);
+    printf("Sending %s\n", buf);
+    message.payload = (void*)buf;
+
+    message.qos = MQTT::QOS0;
+    message.id = id++;
+    message.payloadlen = strlen(buf);
+
+    nsapi_error_t rc = azure->publish(&message);
+    if(rc != MQTT::SUCCESS) {
+        printf("ERROR: rc from MQTT publish is %d\r\n", rc);
+    }
+
+    count++;
+
+    print_memory_info();
 }
 
 /**
@@ -102,10 +159,15 @@ void button_callback(MbedCloudClientResource *resource, const NoticationDelivery
  */
 void registered(const ConnectorClientEndpointInfo *endpoint) {
     printf("Registered to Pelion Device Management. Endpoint Name: %s\n", endpoint->internal_endpoint_name.c_str());
+
+    print_memory_info();
 }
 
 int main(void) {
+    // mbed_trace_init();
     printf("\nStarting Simple Pelion Device Management Client example\n");
+
+    print_memory_info();
 
 #if USE_BUTTON == 1
     // If the User button is pressed ons start, then format storage.
@@ -131,6 +193,22 @@ int main(void) {
 
     printf("Connected to the network successfully. IP address: %s\n", net->get_ip_address());
 
+    print_memory_info();
+
+    // First we'll do Azure
+    printf("Initializing Azure IoT Hub Client...\n");
+
+    azure = new AzureIoT(&eventQueue, net, &azure_message_handler);
+    nsapi_error_t cr = azure->connect();
+    if (cr != 0) {
+        printf("Azure IoT Hub Client initialization failed (%d)\n", cr);
+        print_memory_info();
+        return -1;
+    }
+    printf("Azure IoT Hub is connected\n", cr);
+
+    print_memory_info();
+
     printf("Initializing Pelion Device Management Client...\n");
 
     // SimpleMbedCloudClient handles registering over LwM2M to Pelion Device Management
@@ -141,13 +219,9 @@ int main(void) {
         return -1;
     }
 
-    // Creating resources, which can be written or read from the cloud
-    button_res = client.create_resource("3200/0/5501", "button_count");
-    button_res->set_value(0);
-    button_res->methods(M2MMethod::GET);
-    button_res->observable(true);
-    button_res->attach_notification_callback(button_callback);
+    print_memory_info();
 
+    // Creating resources, which can be written or read from the cloud
     led_res = client.create_resource("3201/0/5853", "led_state");
     led_res->set_value(led.read());
     led_res->methods(M2MMethod::GET | M2MMethod::PUT);
@@ -176,7 +250,12 @@ int main(void) {
     printf("Simulating button press every 5 seconds...\n");
 #endif /* USE_BUTTON */
 
-    // You can easily run the eventQueue in a separate thread if required
+#if MBED_CONF_NANOSTACK_HAL_EVENT_LOOP_DISPATCH_FROM_APPLICATION == 1 // if running device management in single-thread mode
+    // Run the scheduler on the main event queue
+    eventQueue.call_every(1, callback(&client, &SimpleMbedCloudClient::process_events));
+#endif
+
+    // Process events forever
     eventQueue.dispatch_forever();
 }
 
