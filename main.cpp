@@ -53,8 +53,7 @@ MbedCloudClientResource *post_res;
 // This is great because things such as network operations are illegal in ISR, so updating a resource in a button's fall() function is not allowed
 EventQueue *eventQueue = mbed_event_queue();
 
-void azure_message_handler(MQTT::MessageData& md);
-
+// Azure IoT hub object here
 AzureIoT *azure;
 
 /*
@@ -68,11 +67,14 @@ void azure_message_handler(MQTT::MessageData& md)
     char buff[128] = { 0 };
     memcpy(buff, message.payload, message.payloadlen);
 
-    printf("Message arrived from Azure: '%s'\n", buff);
+    printf("Message received from Azure: '%s'\n", buff);
 }
 
-
+/**
+ * Print thread stats and an overview of the heap
+ */
 void print_memory_info() {
+    printf("\n===========================================\n");
     // allocate enough room for every thread's stack statistics
     int cnt = osThreadGetCount();
     mbed_stats_stack_t *stats = (mbed_stats_stack_t*) malloc(cnt * sizeof(mbed_stats_stack_t));
@@ -87,6 +89,7 @@ void print_memory_info() {
     mbed_stats_heap_t heap_stats;
     mbed_stats_heap_get(&heap_stats);
     printf("Heap size: %lu / %lu bytes (max: %lu bytes)\r\n", heap_stats.current_size, heap_stats.reserved_size, heap_stats.max_size);
+    printf("===========================================\n\n");
 }
 
 /**
@@ -95,7 +98,7 @@ void print_memory_info() {
  * @param newValue Updated value for the resource
  */
 void put_callback(MbedCloudClientResource *resource, m2m::String newValue) {
-    printf("PUT received. New value: %s\n", newValue.c_str());
+    printf("PUT received from Pelion. New value for LED: %s\n", newValue.c_str());
     led = atoi(newValue.c_str());
 }
 
@@ -107,7 +110,7 @@ void put_callback(MbedCloudClientResource *resource, m2m::String newValue) {
  * @param size Size of the body
  */
 void post_callback(MbedCloudClientResource *resource, const uint8_t *buffer, uint16_t size) {
-    printf("POST received (length %u). Payload: ", size);
+    printf("POST received from Pelion (length %u). Payload: ", size);
     for (size_t ix = 0; ix < size; ix++) {
         printf("%02x ", buffer[ix]);
     }
@@ -150,8 +153,8 @@ void button_press() {
 
     const size_t len = 128;
     char buf[len];
-    snprintf(buf, len, "Button press: #%d from %s", count, DEVICE_ID);
-    printf("Sending %s\n", buf);
+    snprintf(buf, len, "Button press: #%lu from %s", count, DEVICE_ID);
+    printf("Sending '%s' to Azure IoT Hub\n", buf);
     message.payload = (void*)buf;
 
     message.qos = MQTT::QOS0;
@@ -165,16 +168,7 @@ void button_press() {
 
     count++;
 
-    print_memory_info();
-}
-
-/**
- * Notification callback handler
- * @param resource The resource that triggered the callback
- * @param status The delivery status of the notification
- */
-void button_callback(MbedCloudClientResource *resource, const NoticationDeliveryStatus status) {
-    printf("Button notification, status %s (%d)\n", MbedCloudClientResource::delivery_status_to_string(status), status);
+    // print_memory_info();
 }
 
 /**
@@ -182,11 +176,11 @@ void button_callback(MbedCloudClientResource *resource, const NoticationDelivery
  * @param endpoint Information about the registered endpoint such as the name (so you can find it back in portal)
  */
 void registered(const ConnectorClientEndpointInfo *endpoint) {
-    printf("Registered to Pelion Device Management. Endpoint Name: %s\n", endpoint->internal_endpoint_name.c_str());
+    printf("\nRegistered to Pelion Device Management. Endpoint Name: %s\n", endpoint->internal_endpoint_name.c_str());
 
     // fill_memory_up();
 
-    printf("Registering to Azure IoT Hub...\n");
+    printf("\nRegistering to Azure IoT Hub...\n\n");
 
     azure = new AzureIoT(eventQueue, net, &azure_message_handler);
 
@@ -196,14 +190,14 @@ void registered(const ConnectorClientEndpointInfo *endpoint) {
         print_memory_info();
         return;
     }
-    printf("Azure IoT Hub is connected. Endpoint name: %s\n", DEVICE_ID);
+    printf("\nAzure IoT Hub is connected. Endpoint name: %s\n", DEVICE_ID);
 
     print_memory_info();
 }
 
 int main(void) {
     // mbed_trace_init();
-    printf("\nStarting Simple Pelion Device Management Client example\n");
+    printf("\nStarting Pelion Device Management + Azure IoT Hub example\n");
 
     print_memory_info();
 
@@ -233,12 +227,7 @@ int main(void) {
 
     printf("Connected to the network successfully. IP address: %s\n", net->get_ip_address());
 
-    print_memory_info();
-
-    // First we'll do Azure
-    printf("Initializing Azure IoT Hub Client...\n");
-
-    print_memory_info();
+    // print_memory_info();
 
     mbed_mem_trace_set_callback(mbed_mem_trace_default_callback);
 
@@ -250,9 +239,9 @@ int main(void) {
         return -1;
     }
 
-    print_memory_info();
+    // print_memory_info();
 
-    // Creating resources, which can be written or read from the cloud
+    // Creating resources, which can be written or read from Pelion Device Management
     led_res = client.create_resource("3201/0/5853", "led_state");
     led_res->set_value(led.read());
     led_res->methods(M2MMethod::GET | M2MMethod::PUT);
@@ -273,7 +262,7 @@ int main(void) {
 #if USE_BUTTON == 1
     // The button fires on an interrupt context, but debounces it to the eventqueue, so it's safe to do network operations
     button.fall(eventQueue->event(&button_press));
-    printf("Press the user button to increment the LwM2M resource value...\n");
+    printf("Press the user button to increment the value in Azure...\n");
 #else
     // The timer fires on an interrupt context, but debounces it to the eventqueue, so it's safe to do network operations
     Ticker timer;

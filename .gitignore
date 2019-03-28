@@ -15,3 +15,4 @@ simple-mbed-cloud-client/
 drivers/network/WIFI_ISM43362/
 drivers/storage/COMPONENT_NUSD/
 simple-azure-iot-hub/ntp-client/
+MQTT_server_setting_jan.h

@@ -1,7 +1,7 @@
 #ifndef _SIMPLE_AZURE_IOT_HUB_H_
 #define _SIMPLE_AZURE_IOT_HUB_H_
 
-#include "MQTT_server_setting_jan.h"
+#include "MQTT_server_setting.h"
 #include "MQTTNetwork.h"
 #include "MQTTmbed.h"
 #include "MQTTClient.h"
