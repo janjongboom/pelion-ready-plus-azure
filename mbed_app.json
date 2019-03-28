@@ -261,7 +261,8 @@
             "target.bootloader_img"                     : "bootloader/mbed-bootloader-DISCO_L475VG_IOT01A.bin",
             "target.header_offset"                      : "0x10000",
             "target.app_offset"                         : "0x10400",
-            "ism43362.read-thread-stack-size"           : "2048",
+            "ism43362.read-thread-stack-size"           : 1536,
+            "ism43362.read-thread-stack-statically-allocated": true,
             "button-pressed-state"                      : 0,
             "timer-thread-stack-size"                   : 256,
             "idle-thread-stack-size"                    : 128
