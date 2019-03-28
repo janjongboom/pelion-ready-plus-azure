@@ -12,14 +12,14 @@
             "device-management.mbedtls-user-config-file": "\"mbedtls_pelion_azure_config.h\"",
             "platform.stdio-baud-rate"                  : 115200,
             "platform.stdio-convert-newlines"           : true,
-            "mbed-trace.enable"                         : 1,
+            "mbed-trace.enable"                         : 0,
             "mbed-cloud-client.disable-certificate-enrollment": 1,
             "nanostack-hal.event-loop-dispatch-from-application": true,
             "events.shared-dispatch-from-application"   : 1,
             "events.enable-highprio-queue"              : 0,
             "nsapi.default-wifi-security"               : "WPA_WPA2",
-            "nsapi.default-wifi-ssid"                   : "\"yolo 5GHz\"",
-            "nsapi.default-wifi-password"               : "\"0624710192\""
+            "nsapi.default-wifi-ssid"                   : "\"SSID\"",
+            "nsapi.default-wifi-password"               : "\"Password\""
         },
         "K64F": {
             "target.components_add"                     : ["SD"],

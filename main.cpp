@@ -178,7 +178,7 @@ void button_press() {
 void registered(const ConnectorClientEndpointInfo *endpoint) {
     printf("\nRegistered to Pelion Device Management. Endpoint Name: %s\n", endpoint->internal_endpoint_name.c_str());
 
-    // fill_memory_up();
+    print_memory_info();
 
     printf("\nRegistering to Azure IoT Hub...\n\n");
 
