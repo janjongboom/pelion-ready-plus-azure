@@ -54,17 +54,22 @@ public:
         nsapi_error_t ret;
 
         ret = socket->open(network);
+        // printf("socket->open %d\n", ret);
         if (ret != NSAPI_ERROR_OK) return ret;
 
         ret = socket->set_root_ca_cert(ssl_ca_pem);
+        // printf("socket->set_root_ca_cert %d\n", ret);
         if (ret != NSAPI_ERROR_OK) return ret;
 
         if (ssl_cli_pem != NULL && ssl_pk_pem != NULL) {
             ret = socket->set_client_cert_key(ssl_cli_pem, ssl_pk_pem);
+            // printf("socket->set_client_cert_key %d\n", ret);
             if (ret != NSAPI_ERROR_OK) return ret;
         }
 
-        return socket->connect(hostname, port);
+        ret = socket->connect(hostname, port);
+        // printf("socket->connect %d\n", ret);
+        return ret;
     }
 
     int disconnect() {

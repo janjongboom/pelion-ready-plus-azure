@@ -258,7 +258,7 @@
  *         setting PAL_USE_SECURE_TIME to 0.
  *
  */
-#define MBEDTLS_SSL_RENEGOTIATION
+// #define MBEDTLS_SSL_RENEGOTIATION
 
 // Needed by provisioning
 #undef MBEDTLS_PEM_WRITE_C

@@ -1,7 +1,7 @@
 #ifndef _SIMPLE_AZURE_IOT_HUB_H_
 #define _SIMPLE_AZURE_IOT_HUB_H_
 
-#include "MQTT_server_setting.h"
+#include "MQTT_server_setting_jan.h"
 #include "MQTTNetwork.h"
 #include "MQTTmbed.h"
 #include "MQTTClient.h"
@@ -9,8 +9,8 @@
 #include "mbedtls/error.h"
 
 #define MQTT_MAX_CONNECTIONS         5
-#define MQTT_MAX_PACKET_SIZE         1024
-#define MQTT_MESSAGE_BUFFER_SIZE     1024
+#define MQTT_MAX_PACKET_SIZE         512
+#define MQTT_MESSAGE_BUFFER_SIZE     512
 
 // Topics from user's setting in MQTT_server_setting.h
 static const char *az_mqtt_topic_pub = "devices/" DEVICE_ID "/messages/events/";
@@ -28,7 +28,7 @@ public:
      *           todo: replace by Mbed OS Callback
      */
     AzureIoT(EventQueue *queue, NetworkInterface *network, MQTT::Client<MQTTNetwork, Countdown, MQTT_MAX_PACKET_SIZE, MQTT_MAX_CONNECTIONS>::messageHandler mh)
-        : _queue(queue), _network(network), _mh(mh), _mqttNetwork(network), _mqttClient(_mqttNetwork)
+        : _queue(queue), _network(network), _mh(mh), _mqttNetwork(network), _mqttClient(_mqttNetwork), _ntp(network)
     {
 
     }
@@ -44,21 +44,17 @@ public:
      */
     nsapi_error_t connect() {
         // Do an NTP time sync
-        time_t now = -1;
-        while (now < 0) {
+        {
             printf("[AZUR] NTP sync...\n");
-            NTPClient ntp(_network);
-            ntp.set_server("time.google.com", 123);
-            now = ntp.get_timestamp();
+            _ntp.set_server("time.google.com", 123);
+            time_t now = _ntp.get_timestamp();
             printf("[AZUR] NTP timestamp returned %d\n", now);
-            if (now >= 0) {
-                set_time(now);
-                printf("[AZUR] Time is now %s\n", ctime(&now));
-                break;
+            if (now <= 0) {
+                printf("[AZUR] NTP could not sync time with time.google.com:123\r\n");
+                return NSAPI_ERROR_NO_CONNECTION;
             }
-            else {
-                wait_ms(1000);
-            }
+            set_time(now);
+            printf("[AZUR] Time is now %s", ctime(&now));
         }
 
         printf("[AZUR] Connecting to server %s:%d...\n", MQTT_SERVER_HOST_NAME, MQTT_SERVER_PORT);
@@ -149,8 +145,7 @@ private:
 
     MQTTNetwork _mqttNetwork;
     MQTT::Client<MQTTNetwork, Countdown, MQTT_MAX_PACKET_SIZE, MQTT_MAX_CONNECTIONS> _mqttClient;
-
-    char _messageBuffer[MQTT_MESSAGE_BUFFER_SIZE];
+    NTPClient _ntp;
 };
 
 #endif // _SIMPLE_AZURE_IOT_HUB_H_

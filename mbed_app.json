@@ -2,7 +2,9 @@
     "macros": [
         "MBED_CONF_TLS_SOCKET_DEBUG_LEVEL=1",
         "MBED_HEAP_STATS_ENABLED=1",
-        "MBED_STACK_STATS_ENABLED=1"
+        "MBED_STACK_STATS_ENABLED=1",
+        "MBED_FAULT_HANDLER_DISABLED=1",
+        "PAL_USE_SECURE_TIME=0"
     ],
     "target_overrides": {
         "*": {
@@ -10,12 +12,14 @@
             "device-management.mbedtls-user-config-file": "\"mbedtls_pelion_azure_config.h\"",
             "platform.stdio-baud-rate"                  : 115200,
             "platform.stdio-convert-newlines"           : true,
-            "mbed-trace.enable"                         : 0,
+            "mbed-trace.enable"                         : 1,
             "mbed-cloud-client.disable-certificate-enrollment": 1,
             "nanostack-hal.event-loop-dispatch-from-application": true,
+            "events.shared-dispatch-from-application"   : 1,
+            "events.enable-highprio-queue"              : 0,
             "nsapi.default-wifi-security"               : "WPA_WPA2",
-            "nsapi.default-wifi-ssid"                   : "\"SSID\"",
-            "nsapi.default-wifi-password"               : "\"Password\""
+            "nsapi.default-wifi-ssid"                   : "\"yolo 5GHz\"",
+            "nsapi.default-wifi-password"               : "\"0624710192\""
         },
         "K64F": {
             "target.components_add"                     : ["SD"],
@@ -258,7 +262,9 @@
             "target.header_offset"                      : "0x10000",
             "target.app_offset"                         : "0x10400",
             "ism43362.read-thread-stack-size"           : "2048",
-            "button-pressed-state"                      : 0
+            "button-pressed-state"                      : 0,
+            "timer-thread-stack-size"                   : 256,
+            "idle-thread-stack-size"                    : 128
         },
         "DISCO_F413ZH": {
             "target.components_add"                     : ["QSPIF", "WIFI_ISM43362"],
@@ -607,7 +613,13 @@
             "value": 1
         },
         "main-stack-size": {
-            "value": "6*1024"
+            "value": "5*1024"
+        },
+        "timer-thread-stack-size": {
+            "value": "MBED_CONF_RTOS_TIMER_THREAD_STACK_SIZE"
+        },
+        "idle-thread-stack-size": {
+            "value": "MBED_CONF_RTOS_IDLE_THREAD_STACK_SIZE"
         },
         "use-button": {
             "help": "Whether the target has a button",
